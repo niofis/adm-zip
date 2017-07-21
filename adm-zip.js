@@ -7,11 +7,13 @@ var ZipEntry = require("./zipEntry"),
     ZipFile =  require("./zipFile"),
     Utils = require("./util");
 
-module.exports = function(/*String*/input) {
+module.exports = function(/*String*/input, /*Object*/ options) {
     var _zip = undefined,
         _filename = "";
-
-    if (input && typeof input === "string") { // load zip file
+    if (input && options.type == Utils.Constants.AZURE_BLOB) {
+      _zip = new ZipFile(input, Utils.Constants.AZURE_BLOB); 
+    }
+    else if (input && typeof input === "string") { // load zip file
         if (fs.existsSync(input)) {
             _filename = input;
             _zip = new ZipFile(input, Utils.Constants.FILE);
@@ -25,20 +27,19 @@ module.exports = function(/*String*/input) {
     }
 
     function getEntry(/*Object*/entry) {
+      return new Promise((resolve, reject) => {
         if (entry && _zip) {
             var item;
             // If entry was given as a file name
             if (typeof entry === "string")
-                item = _zip.getEntry(entry);
+                _zip.getEntry(entry).then(resolve).catch(reject);
             // if entry was given as a ZipEntry object
             if (typeof entry === "object" && entry.entryName != undefined && entry.header != undefined)
-                item =  _zip.getEntry(entry.entryName);
-
-            if (item) {
-                return item;
-            }
+                _zip.getEntry(entry.entryName).then(resolve).catch(reject);
+        } else {
+          reject("invalid entry or zip file");  
         }
-        return null;
+      });
     }
 
     return {
@@ -297,11 +298,13 @@ module.exports = function(/*String*/input) {
          * @return Array
          */
         getEntries : function() {
+          return new Promise((resolve, reject) => {
             if (_zip) {
-               return _zip.entries;
+               _zip.getEntries().then(resolve).catch(reject);
             } else {
-                return [];
+                resolve([]);
             }
+          });
         },
 
         /**
@@ -327,11 +330,17 @@ module.exports = function(/*String*/input) {
          *
          * @return Boolean
          */
-        extractEntryTo : function(/*Object*/entry, /*String*/targetPath, /*Boolean*/maintainEntryPath, /*Boolean*/overwrite) {
+        extractEntryTo : async function(/*Object*/entry, /*String*/targetPath, /*Boolean*/maintainEntryPath, /*Boolean*/overwrite) {
             overwrite = overwrite || false;
             maintainEntryPath = typeof maintainEntryPath == "undefined" ? true : maintainEntryPath;
 
-            var item = getEntry(entry);
+          debugger;
+            var item;
+            try {
+              item = getEntry(entry);
+            } catch (ex) {
+              console.log(ex);
+            }
             if (!item) {
                 throw Utils.Errors.NO_ENTRY;
             }

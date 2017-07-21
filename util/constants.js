@@ -111,5 +111,8 @@ module.exports = {
     EF_ZIP64_SUNCOMP : 0,
     EF_ZIP64_SCOMP   : 8,
     EF_ZIP64_RHO     : 16,
-    EF_ZIP64_DSN     : 24
+    EF_ZIP64_DSN     : 24,
+
+    /* Soure types */
+    AZURE_BLOB       : "azure-blob"
 };

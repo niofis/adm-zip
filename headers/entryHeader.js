@@ -106,8 +106,9 @@ module.exports = function () {
             return _dataHeader;
         },
 
-        loadDataHeaderFromBinary : function(/*Buffer*/input) {
-            var data = input.slice(_offset, _offset + Constants.LOCHDR);
+        loadDataHeaderFromBinary : async function(/*Buffer*/input) {
+          try {
+            var data = await input.slice(_offset, _offset + Constants.LOCHDR);
             // 30 bytes and should start with "PK\003\004"
             if (data.readUInt32LE(0) != Constants.LOCSIG) {
                 throw Utils.Errors.INVALID_LOC;
@@ -132,9 +133,12 @@ module.exports = function () {
                 // extra field length
                 extraLen : data.readUInt16LE(Constants.LOCEXT)
             }
+          } catch (ex) {
+            console.log(ex);
+          }
         },
 
-        loadFromBinary : function(/*Buffer*/data) {
+        loadFromBinary : async function(/*Buffer*/data) {
             // data should be 46 bytes and start with "PK 01 02"
             if (data.length != Constants.CENHDR || data.readUInt32LE(0) != Constants.CENSIG) {
                 throw Utils.Errors.INVALID_CEN;

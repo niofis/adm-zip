@@ -334,10 +334,9 @@ module.exports = function(/*String*/input, /*Object*/ options) {
             overwrite = overwrite || false;
             maintainEntryPath = typeof maintainEntryPath == "undefined" ? true : maintainEntryPath;
 
-          debugger;
             var item;
             try {
-              item = getEntry(entry);
+              item = await getEntry(entry);
             } catch (ex) {
               console.log(ex);
             }
@@ -361,7 +360,7 @@ module.exports = function(/*String*/input, /*Object*/ options) {
                 return true;
             }
 
-            var content = item.getData();
+            var content = await item.getData();
             if (!content) throw Utils.Errors.CANT_EXTRACT_FILE;
 
             if (fs.existsSync(target) && !overwrite) {

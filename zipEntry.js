@@ -13,11 +13,14 @@ module.exports = function (/*Buffer*/input) {
         _extra = new Buffer(0);
 
     function getCompressedDataFromZip() {
-        if (!input || !Buffer.isBuffer(input)) {
-            return new Buffer(0);
+      return new Promise(async (resolve, reject) => {
+        if (!input) {
+            return resolve(new Buffer(0));
         }
-        _entryHeader.loadDataHeaderFromBinary(input);
-        return input.slice(_entryHeader.realDataOffset, _entryHeader.realDataOffset + _entryHeader.compressedSize)
+        await _entryHeader.loadDataHeaderFromBinary(input);
+        var data = await input.slice(_entryHeader.realDataOffset, _entryHeader.realDataOffset + _entryHeader.compressedSize)
+        resolve(data);
+      });
     }
 
     function crc32OK(data) {
@@ -34,23 +37,23 @@ module.exports = function (/*Buffer*/input) {
         return true;
     }
 
-    function decompress(/*Boolean*/async, /*Function*/callback, /*String*/pass) {
-        if(typeof callback === 'undefined' && typeof async === 'string') {
-            pass=async;
-            async=void 0;
-        }
+    function decompress() {
+      return new Promise(async (resolve, reject) => {
+        debugger;
         if (_isDirectory) {
             if (async && callback) {
                 callback(new Buffer(0), Utils.Errors.DIRECTORY_CONTENT_ERROR); //si added error.
             }
-            return new Buffer(0);
+            //return new Buffer(0);
+          return resolve(new Buffer(0));
         }
 
-        var compressedData = getCompressedDataFromZip();
+        var compressedData = await getCompressedDataFromZip();
        
         if (compressedData.length == 0) {
-            if (async && callback) callback(compressedData, Utils.Errors.NO_DATA);//si added error.
-            return compressedData;
+            //if (async && callback) callback(compressedData, Utils.Errors.NO_DATA);//si added error.
+            //return compressedData;
+          return resolve(compressedData);
         }
 
         var data = new Buffer(_entryHeader.size);
@@ -60,22 +63,22 @@ module.exports = function (/*Buffer*/input) {
             case Utils.Constants.STORED:
                 compressedData.copy(data);
                 if (!crc32OK(data)) {
-                    if (async && callback) callback(data, Utils.Errors.BAD_CRC);//si added error
-                    return Utils.Errors.BAD_CRC;
+                    //if (async && callback) callback(data, Utils.Errors.BAD_CRC);//si added error
+                    return reject(Utils.Errors.BAD_CRC);
                 } else {//si added otherwise did not seem to return data.
-                    if (async && callback) callback(data);
-                    return data;
+                    //if (async && callback) callback(data);
+                    return resolve(data);
                 }
                 break;
             case Utils.Constants.DEFLATED:
                 var inflater = new Methods.Inflater(compressedData);
-                if (!async) {
+                //if (!async) {
                     inflater.inflate(data);
                     if (!crc32OK(data)) {
                         console.warn(Utils.Errors.BAD_CRC + " " + _entryName.toString())
                     }
-                    return data;
-                } else {
+                    return resolve(data);
+                /*} else {
                     inflater.inflateAsync(function(result) {
                         result.copy(data, 0);
                         if (!crc32OK(data)) {
@@ -84,12 +87,13 @@ module.exports = function (/*Buffer*/input) {
                             if (callback) callback(data);
                         }
                     })
-                }
+                }*/
                 break;
             default:
-                if (async && callback) callback(new Buffer(0), Utils.Errors.UNKNOWN_METHOD);
-                return Utils.Errors.UNKNOWN_METHOD;
+                //if (async && callback) callback(new Buffer(0), Utils.Errors.UNKNOWN_METHOD);
+                return reject(Utils.Errors.UNKNOWN_METHOD);
         }
+      });
     }
 
     function compress(/*Boolean*/async, /*Function*/callback) {
@@ -238,7 +242,10 @@ module.exports = function (/*Buffer*/input) {
         },
 
         getData : function(pass) {
-            return decompress(false, null, pass);
+          return new Promise((resolve, reject) => {
+            decompress(false, null, pass).then(resolve).catch(reject);
+          });
+          //return decompress(false, null, pass);
         },
 
         getDataAsync : function(/*Function*/callback, pass) {

@@ -29,12 +29,13 @@ class AzureBlobBuffer {
   slice(start, end) {
     var self = this;
     return new Promise((resolve, reject) => {
+      var stop = end ? end - 1 : "";
       request(
         {
           method: "GET",
           url: self.url,
           headers: {
-            Range: `bytes=${start}-${end - 1}`,
+            Range: `bytes=${start}-${stop}`,
           },
           encoding: null,
         },
@@ -101,12 +102,11 @@ module.exports = function(/*String|Buffer*/ input, /*Number*/ inputType) {
   } else {
     // none. is a new file
   }
-
+  /*
   function readEntries() {
     return new Promise((resolve, reject) => {
       readMainHeader()
         .then(async mainHeader => {
-          debugger;
           entryTable = {};
           entryList = new Array(mainHeader.diskEntries); // total number of entries
           var index = mainHeader.offset; // offset of first CEN header
@@ -145,6 +145,49 @@ module.exports = function(/*String|Buffer*/ input, /*Number*/ inputType) {
           }
         })
         .catch(reject);
+    });
+  }
+*/
+
+  function readEntries() {
+    return new Promise((resolve, reject) => {
+      readMainHeader()
+        .then(async mainHeader => {
+          entryTable = {};
+          entryList = new Array(mainHeader.diskEntries); // total number of entries
+          var index = 0; // offset of first CEN header
+          var buffer = await inBuffer.slice(mainHeader.offset);
+          for (var i = 0; i < entryList.length; i++) {
+            var tmp = index,
+              entry = new ZipEntry(inBuffer);
+            entry.header = buffer.slice(tmp, (tmp += Utils.Constants.CENHDR));
+
+            entry.entryName = buffer.slice(
+              tmp,
+              (tmp += entry.header.fileNameLength),
+            );
+
+            if (entry.header.extraLength) {
+              entry.extra = buffer.lice(tmp, (tmp += entry.header.extraLength));
+            }
+
+            if (entry.header.commentLength)
+              entry.comment = buffer.slice(
+                tmp,
+                tmp + entry.header.commentLength,
+              );
+
+            index += entry.header.entryHeaderSize;
+
+            entryList[i] = entry;
+            entryTable[entry.entryName] = entry;
+          }
+          resolve(entryList);
+        })
+        .catch(ex => {
+          console.log(ex);
+          reject(ex);
+        });
     });
   }
 
@@ -233,7 +276,6 @@ module.exports = function(/*String|Buffer*/ input, /*Number*/ inputType) {
     getEntry: function(/*String*/ entryName) {
       return new Promise(async (resolve, reject) => {
         try {
-          debugger;
           await readEntries();
           resolve(entryTable[entryName] || null);
         } catch (ex) {

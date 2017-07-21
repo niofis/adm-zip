@@ -106,12 +106,13 @@ module.exports = function () {
             return _dataHeader;
         },
 
-        loadDataHeaderFromBinary : async function(/*Buffer*/input) {
+        loadDataHeaderFromBinary : function(/*Buffer*/input) {
+          return new Promise(async (resolve, reject) => {
           try {
             var data = await input.slice(_offset, _offset + Constants.LOCHDR);
             // 30 bytes and should start with "PK\003\004"
             if (data.readUInt32LE(0) != Constants.LOCSIG) {
-                throw Utils.Errors.INVALID_LOC;
+                return reject(Utils.Errors.INVALID_LOC);
             }
             _dataHeader = {
                 // version needed to extract
@@ -133,9 +134,12 @@ module.exports = function () {
                 // extra field length
                 extraLen : data.readUInt16LE(Constants.LOCEXT)
             }
+            resolve();
           } catch (ex) {
             console.log(ex);
+            reject(ex);
           }
+          });
         },
 
         loadFromBinary : async function(/*Buffer*/data) {

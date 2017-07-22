@@ -151,12 +151,17 @@ module.exports = function(/*String|Buffer*/ input, /*Number*/ inputType) {
 
   function readEntries() {
     return new Promise((resolve, reject) => {
+      console.time("readMainHeader");
       readMainHeader()
         .then(async mainHeader => {
+          console.timeEnd("readMainHeader");
           entryTable = {};
           entryList = new Array(mainHeader.diskEntries); // total number of entries
           var index = 0; // offset of first CEN header
+          console.time("retrieveEntriesBuffer");
           var buffer = await inBuffer.slice(mainHeader.offset);
+          console.timeEnd("retrieveEntriesBuffer");
+          console.time("loadEntryTable");
           for (var i = 0; i < entryList.length; i++) {
             var tmp = index,
               entry = new ZipEntry(inBuffer);
@@ -168,7 +173,7 @@ module.exports = function(/*String|Buffer*/ input, /*Number*/ inputType) {
             );
 
             if (entry.header.extraLength) {
-              entry.extra = buffer.lice(tmp, (tmp += entry.header.extraLength));
+              entry.extra = buffer.slice(tmp, (tmp += entry.header.extraLength));
             }
 
             if (entry.header.commentLength)
@@ -182,6 +187,7 @@ module.exports = function(/*String|Buffer*/ input, /*Number*/ inputType) {
             entryList[i] = entry;
             entryTable[entry.entryName] = entry;
           }
+          console.timeEnd("loadEntryTable");
           resolve(entryList);
         })
         .catch(ex => {
@@ -200,9 +206,12 @@ module.exports = function(/*String|Buffer*/ input, /*Number*/ inputType) {
           var n = Math.max(0, i - 0xffff), // 0xFFFF is the max zip file comment length
             endOffset = -1; // Start offset of the END header
 
-          for (i; i >= n; i--) {
-            if ((await inBuffer.getByte(i)) != 0x50) continue; // quick check that the byte is 'P'
-            if ((await inBuffer.readUInt32LE(i)) == Utils.Constants.ENDSIG) {
+          var buffer = await inBuffer.slice(n);
+          var max = buffer.length;
+
+          for (i=max; i >=0; i--) {
+            if (buffer[i] != 0x50) continue; // quick check that the byte is 'P'
+            if (buffer.readUInt32LE(i) == Utils.Constants.ENDSIG) {
               // "PK\005\006"
               endOffset = i;
               break;
@@ -213,7 +222,7 @@ module.exports = function(/*String|Buffer*/ input, /*Number*/ inputType) {
           var data;
           if (inputType == Utils.Constants.AZURE_BLOB) {
             try {
-              data = await inBuffer.slice(
+              data = buffer.slice(
                 endOffset,
                 endOffset + Utils.Constants.ENDHDR,
               );
@@ -228,9 +237,9 @@ module.exports = function(/*String|Buffer*/ input, /*Number*/ inputType) {
           }
 
           mainHeader.loadFromBinary(data);
-          if (mainHeader.commentLength) {
+          /*if (mainHeader.commentLength) {
             _comment = await inBuffer.slice(endOffset + Utils.Constants.ENDHDR);
-          }
+          }*/
           //readEntries();
           resolve(mainHeader);
         } catch (ex) {

@@ -39,7 +39,6 @@ module.exports = function (/*Buffer*/input) {
 
     function decompress() {
       return new Promise(async (resolve, reject) => {
-        debugger;
         if (_isDirectory) {
             if (async && callback) {
                 callback(new Buffer(0), Utils.Errors.DIRECTORY_CONTENT_ERROR); //si added error.
@@ -243,7 +242,11 @@ module.exports = function (/*Buffer*/input) {
 
         getData : function(pass) {
           return new Promise((resolve, reject) => {
-            decompress(false, null, pass).then(resolve).catch(reject);
+            console.time("decompress");
+            decompress().then(data => {
+            console.timeEnd("decompress");
+              resolve(data);
+            }).catch(reject);
           });
           //return decompress(false, null, pass);
         },
